@@ -2,11 +2,25 @@
 session_start();
 require_once 'includes/config.php';
 require_once 'includes/functions.php';
+require_once 'includes/email_functions.php';
 
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['success' => false, 'message' => 'Invalid request method']);
+    exit;
+}
+
+// Honeypot spam protection
+if (!validateHoneypot()) {
+    echo json_encode(['success' => false, 'message' => 'Spam detected']);
+    exit;
+}
+
+// Rate limiting
+$clientIP = getUserIP();
+if (!checkRateLimit($clientIP, 3, 300)) { // 3 attempts per 5 minutes
+    echo json_encode(['success' => false, 'message' => 'Too many requests. Please try again later.']);
     exit;
 }
 
@@ -120,12 +134,21 @@ try {
     $result = createBookingWithRegion($bookingData);
     
     if ($result['success']) {
+        // Prepare email data
+        $emailData = array_merge($bookingData, [
+            'booking_id' => $result['booking_id'],
+            'therapist_name' => $therapist['name']
+        ]);
+        
+        // Send notification email
+        $emailSent = sendBookingNotification($emailData);
+        
         // Send confirmation email
         sendBookingConfirmation($result['booking_id']);
         
         echo json_encode([
             'success' => true, 
-            'message' => 'Booking confirmed successfully!',
+            'message' => 'Booking confirmed successfully!' . ($emailSent ? ' Notification sent.' : ''),
             'booking_id' => $result['booking_id']
         ]);
     } else {

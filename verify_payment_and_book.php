@@ -2,6 +2,7 @@
 session_start();
 require_once 'includes/config.php';
 require_once 'includes/functions.php';
+require_once 'includes/email_functions.php';
 
 header('Content-Type: application/json');
 
@@ -122,12 +123,33 @@ try {
         
         $db->commit();
         
+        // Prepare email data
+        $emailData = [
+            'booking_id' => $bookingId,
+            'therapist_id' => $therapist_id,
+            'therapist_name' => $therapist['name'],
+            'full_name' => $full_name,
+            'email' => $email,
+            'phone' => $phone,
+            'address' => $address,
+            'booking_date' => $booking_date,
+            'booking_time' => $booking_time,
+            'message' => $message,
+            'total_amount' => $total_amount,
+            'payment_id' => $paymentId,
+            'region' => 'other', // Default for now
+            'is_night' => false // Default for now
+        ];
+        
+        // Send notification email
+        $emailSent = sendBookingNotification($emailData);
+        
         // Send confirmation email
         sendBookingConfirmation($bookingId);
         
         echo json_encode([
             'success' => true, 
-            'message' => 'Payment successful and booking confirmed!',
+            'message' => 'Payment successful and booking confirmed!' . ($emailSent ? ' Notification sent.' : ''),
             'booking_id' => $bookingId
         ]);
     } else {

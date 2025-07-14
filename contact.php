@@ -2,12 +2,24 @@
 session_start();
 require_once 'includes/config.php';
 require_once 'includes/functions.php';
+require_once 'includes/email_functions.php';
 
 $pageTitle = 'Contact Us';
 $message = '';
 $messageType = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Honeypot spam protection
+    if (!validateHoneypot()) {
+        $message = 'Spam detected. Please try again.';
+        $messageType = 'danger';
+    } else {
+        // Rate limiting
+        $clientIP = getUserIP();
+        if (!checkRateLimit($clientIP, 3, 300)) { // 3 attempts per 5 minutes
+            $message = 'Too many requests. Please try again later.';
+            $messageType = 'danger';
+        } else {
     $name = sanitizeInput($_POST['name'] ?? '');
     $email = sanitizeInput($_POST['email'] ?? '');
     $phone = sanitizeInput($_POST['phone'] ?? '');
@@ -34,17 +46,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 INSERT INTO contact_inquiries (name, email, phone, subject, message, status) 
                 VALUES (?, ?, ?, ?, ?, 'new')
             ");
-            $stmt->execute([$name, $email, $phone, $subject, $messageText]);
+            if ($stmt->execute([$name, $email, $phone, $subject, $messageText])) {
+                // Send notification email
+                $emailData = [
+                    'name' => $name,
+                    'email' => $email,
+                    'phone' => $phone,
+                    'subject' => $subject,
+                    'message' => $messageText
+                ];
+                
+                $emailSent = sendContactNotification($emailData);
             
-            $message = 'Thank you for your message! We will get back to you soon.';
+                $message = 'Thank you for your message! We will get back to you soon.' . ($emailSent ? ' Notification sent.' : '');
             $messageType = 'success';
             
             // Clear form data
             $name = $email = $phone = $subject = $messageText = '';
+            } else {
+                $message = 'Sorry, there was an error sending your message. Please try again.';
+                $messageType = 'danger';
+            }
         } catch (Exception $e) {
             $message = 'Sorry, there was an error sending your message. Please try again.';
             $messageType = 'danger';
         }
+        }
+    }
     }
 }
 ?>
@@ -81,6 +109,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <?php endif; ?>
                     
                     <form method="POST" class="needs-validation" novalidate>
+                        <!-- Honeypot field for spam protection -->
+                        <input type="text" name="website" style="display: none;" tabindex="-1" autocomplete="off">
+                        
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label">Full Name *</label>

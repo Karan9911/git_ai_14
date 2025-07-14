@@ -324,6 +324,12 @@ $services = getAllServices();
                             <label class="form-label">Gallery Images</label>
                             <input type="file" class="form-control" name="gallery_images[]" accept="image/*" multiple>
                             <small class="form-text text-muted">You can select multiple images for the gallery.</small>
+                            
+                            <!-- Gallery Preview Container -->
+                            <div id="galleryPreview" class="mt-3" style="display: none;">
+                                <h6 class="fw-bold">Selected Images:</h6>
+                                <div id="galleryPreviewContainer" class="d-flex flex-wrap gap-2"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -362,6 +368,75 @@ $services = getAllServices();
 
 <?php 
 $extraScripts = '<script>
+    let selectedGalleryFiles = [];
+    
+    // Gallery image preview functionality
+    document.querySelector("input[name=\"gallery_images[]\"]").addEventListener("change", function(e) {
+        const files = Array.from(e.target.files);
+        selectedGalleryFiles = files;
+        updateGalleryPreview();
+    });
+    
+    function updateGalleryPreview() {
+        const previewContainer = document.getElementById("galleryPreviewContainer");
+        const previewSection = document.getElementById("galleryPreview");
+        
+        if (selectedGalleryFiles.length === 0) {
+            previewSection.style.display = "none";
+            return;
+        }
+        
+        previewSection.style.display = "block";
+        previewContainer.innerHTML = "";
+        
+        selectedGalleryFiles.forEach((file, index) => {
+            if (file.type.startsWith("image/")) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const previewItem = document.createElement("div");
+                    previewItem.className = "position-relative";
+                    previewItem.style.cssText = "width: 100px; height: 100px;";
+                    
+                    previewItem.innerHTML = `
+                        <img src="${e.target.result}" 
+                             class="img-thumbnail" 
+                             style="width: 100%; height: 100%; object-fit: cover;">
+                        <button type="button" 
+                                class="btn btn-danger btn-sm position-absolute top-0 end-0" 
+                                style="width: 20px; height: 20px; padding: 0; font-size: 10px; line-height: 1;"
+                                onclick="removeGalleryImage(${index})"
+                                title="Remove image">
+                            ×
+                        </button>
+                        <div class="text-center mt-1">
+                            <small class="text-muted">${file.name.length > 15 ? file.name.substring(0, 12) + "..." : file.name}</small>
+                        </div>
+                    `;
+                    
+                    previewContainer.appendChild(previewItem);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+    
+    function removeGalleryImage(index) {
+        selectedGalleryFiles.splice(index, 1);
+        updateFileInput();
+        updateGalleryPreview();
+    }
+    
+    function updateFileInput() {
+        const fileInput = document.querySelector("input[name=\"gallery_images[]\"]");
+        const dt = new DataTransfer();
+        
+        selectedGalleryFiles.forEach(file => {
+            dt.items.add(file);
+        });
+        
+        fileInput.files = dt.files;
+    }
+    
     function editTherapist(id) {
         // Fetch therapist data and populate form
         fetch("get_therapist_data.php?id=" + id)
@@ -405,6 +480,11 @@ $extraScripts = '<script>
         document.getElementById("therapistModalTitle").textContent = "Add New Therapist";
         document.getElementById("formAction").value = "add";
         document.getElementById("therapistId").value = "";
+        
+        // Reset gallery preview
+        selectedGalleryFiles = [];
+        document.getElementById("galleryPreview").style.display = "none";
+        document.getElementById("galleryPreviewContainer").innerHTML = "";
     });
 </script>';
 

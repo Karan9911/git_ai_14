@@ -40,6 +40,8 @@
                             <form id="inquiryForm" class="needs-validation" novalidate>
                                 <input type="hidden" name="type" value="inquiry">
                                 <input type="hidden" name="therapist_id" id="inquiryTherapistId">
+                                <!-- Honeypot field for spam protection -->
+                                <input type="text" name="website" style="display: none;" tabindex="-1" autocomplete="off">
                                 
                                 <div class="row g-3">
                                     <div class="col-md-6">
@@ -91,6 +93,8 @@
                                     <input type="hidden" name="region" id="bookingRegion">
                                     <input type="hidden" name="is_night" id="bookingIsNight">
                                     <input type="hidden" name="night_charge" id="bookingNightCharge">
+                                    <!-- Honeypot field for spam protection -->
+                                    <input type="text" name="website" style="display: none;" tabindex="-1" autocomplete="off">
                                     
                                     <div class="row g-3">
                                         <div class="col-md-6">
